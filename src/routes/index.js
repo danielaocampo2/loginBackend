@@ -1,31 +1,74 @@
 const { Router } = require('express');
-
+const bcrypt = require('bcrypt');
 const router = Router(); // objeto para poder definir  url
 const User = require('../models/User'); // modelo usuario
 const jwt = require('jsonwebtoken');
 
 router.get('/', (req, res) => res.send('Hello word'));
-router.post('/signup', async(req, res) => {
-    //console.log(req.body);
-    const { email, password } = req.body;
-    //console.log(email, password);
-    const newUser = new User({ email, password });
-    //console.log(newUser);
-    await newUser.save(); // await cuando es un metodo asincrono va haciendo eso mientras continua, va con aysnc
-    //res.send('Testing signup');
-    const token = jwt.sign({ _id: newUser._id }, 'secretkey'); // aca se deberia de poner la duración del token y demas
-    res.status(200).json({ token });
+router.post('/signup', (req, res) => {
+
+    let newuser = new User(req.body);
+    //guardo con el metodo save el nuevo usuario
+    
+    
+
+    newuser.save().then(user =>{
+        payload = { //se debe meter fecha de entrega
+            email: user.email,
+            name: user.name,
+            _id: user._id
+        }
+
+
+        const token = jwt.sign(payload, 'secretkey'); // aca se deberia de poner la duración del token y demas
+        res.status(201).send({user , token})
+
+    } ).catch(error => res.status(500).send({message: "User alredy in db",error}));
+
 });
 
-router.post('/signin', async(req, res) => {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) return res.status(401).send("The email doesn't exists");
-    if (user.password !== password) return res.status(401).send('Wrong Password');
+router.post('/signin', (req, res) => {
 
-    const token = jwt.sign({ _id: user._id }, 'secretkey'); // todo debe ser el mismo el donde ponga el secretKey
-    return res.status(200).json({ token });
+    let email = req.body.email;
+    let password = req.body.password;
+
+    User.findOne({ email }).then(user => { // se puede solo username
+        if (!user) res.status(404).send({ message: "El email no existe" });
+        console.log(user);
+        //si existe, hago mi logica de login
+        bcrypt.compare(password, user.password)
+            .then(match => {
+                if (match) {
+                    payload = { //se debe meter fecha de entrega
+                        _id: user._id,
+                        email: user.email,
+                        name: user.name
+                    }
+                    //acceso con web token npm i jsonwebtoken
+                    jwt.sign(payload,'secretkey' , function (error, token) {
+                        if (error) {
+                            res.status(500).send({ error });
+                        } else {
+                            res.status(200).send({ message: "accedido", token });
+                        }
+                    });
+
+                } else {
+                    res.status(200).send({ message: "Password mala" });//no doy acceso
+                }
+
+            }).catch(error => { //se le envia tambien el status para mejorar practicas
+                console.log(error);
+                res.status(500).send({ error });
+            });
+    }).catch(error => { //este error no es si no existe el username en la db
+        console.log(error);
+        res.status(500).send({ error });
+    });
+
 });
+
+    
 
 router.get('/tasks', (req, res) => {
     res.json([{
