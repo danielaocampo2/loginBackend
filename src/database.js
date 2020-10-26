@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-mongoose.connect('mongodb+srv://analytics:analytics-password@cluster0.za8im.mongodb.net/JDPAUTOS?retryWrites=true&w=majority', {
+mongoose.connect(process.env.MONGODB_URI, {
         useNewUrlParser: true,
         useUnifiedTopology: true,
         useFindAndModify: false,
